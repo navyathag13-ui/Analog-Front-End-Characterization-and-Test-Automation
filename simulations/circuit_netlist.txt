@@ -1,0 +1,93 @@
+* ============================================================
+* LTspice XVII Netlist
+* Analog Front-End Signal Conditioning Stage
+* Non-Inverting Amplifier + Single-Pole Output RC Filter
+*
+* Op-Amp:   TL071 (JFET-input, GBW = 3 MHz typ.)
+* Supply:   ±15 V
+* Topology: Non-inverting gain stage
+*
+* Author:   Navyatha G
+* Circuit:  TL071_Noninverting_Preamp
+*
+* NOTE: This netlist is intended for import into LTspice XVII.
+*       Copy the text below into a new file named
+*       TL071_Noninverting_Preamp.asc (schematic) or
+*       TL071_Noninverting_Preamp.net (netlist).
+*       The TL071 model must be available in your LTspice
+*       library (included with LTspice XVII by default).
+* ============================================================
+
+.title TL071 Non-Inverting Amplifier — AC Analysis
+
+* ── Power supply ─────────────────────────────────────────────
+VCC  VCC  0  DC 15V
+VEE  VEE  0  DC -15V
+
+* ── Input stimulus ───────────────────────────────────────────
+* AC analysis: 100 mV amplitude, swept from 1 Hz to 10 MHz
+* Transient analysis: 1 kHz, 100 mV amplitude sine
+Vin  IN   0  AC 0.1  SIN(0 0.1 1k)
+
+* ── Gain-setting resistors ───────────────────────────────────
+* Config 1: R1=1k, R2=9k → Gain = 1 + R2/R1 = 10 (20 dB)
+* Config 2: R1=1k, R2=19k → Gain = 20 (26 dB)   [swap R2 only]
+* Config 3: R1=1k, R2=4k  → Gain = 5  (14 dB)   [swap R2 only]
+R1  OUT_MINUS  0     1k
+R2  OUT_MINUS  VOUT  9k
+
+* ── Op-amp (TL071) ───────────────────────────────────────────
+* Pinout: U1 IN+ IN- V+ V- OUT
+* IN+  = signal input (non-inverting)
+* IN-  = feedback node (OUT_MINUS)
+* V+   = VCC (+15 V)
+* V-   = VEE (-15 V)
+* OUT  = amplifier output
+XU1  IN  OUT_MINUS  VCC  VEE  VOUT  TL071
+
+* ── Optional output RC low-pass filter ───────────────────────
+* Rout and Cout form a single-pole filter with fc = 1/(2π·Rout·Cout)
+* With Rout=560Ω, Cout=1nF: fc ≈ 284 kHz (close to Config 1 BW)
+* Remove Rout/Cout to observe raw op-amp response.
+* Rout  VOUT  VFILT  560
+* Cout  VFILT 0      1n
+
+* ── Load ─────────────────────────────────────────────────────
+RLOAD  VOUT  0  10k
+
+* ── Simulation commands ──────────────────────────────────────
+
+* AC sweep: 100 points/decade, 1 Hz to 10 MHz
+.ac dec 100 1 10Meg
+
+* Transient: 3 ms total, 1 µs max step (capture 3 cycles @ 1 kHz)
+* .tran 1u 3m
+
+* Noise analysis (input-referred), swept 1 Hz to 100 kHz
+* .noise V(VOUT) Vin dec 100 1 100k
+
+* Save output voltage and input voltage
+.save V(VOUT) V(IN)
+
+* ── Model include ────────────────────────────────────────────
+* LTspice ships with TL071. If not found, add:
+* .lib "path\to\TL071.lib"
+.lib TL071.lib
+
+.end
+
+
+* ============================================================
+* CONFIGURATION SWAP INSTRUCTIONS
+* ============================================================
+* To switch configurations, change only R2:
+*
+*   Config 1 (Gain=10, fc≈300 kHz): R2 = 9 kΩ
+*   Config 2 (Gain=20, fc≈150 kHz): R2 = 19 kΩ
+*   Config 3 (Gain=5,  fc≈600 kHz): R2 = 4 kΩ
+*
+* After each swap:
+*   1. Run .ac simulation
+*   2. Export V(VOUT) as "ac_sweep_configN.csv" from Plot → Export
+*   3. Run: python scripts/analyze_frequency_response.py --config N
+* ============================================================
