@@ -46,3 +46,8 @@ plots/*.svg
 *.bak
 *.swp
 *~
+
+# Tool metadata
+.claude/
+scratch/
+prompts/
